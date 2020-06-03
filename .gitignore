@@ -1,0 +1,6 @@
+data/
+data-camvid/
+.ipynb_checkpoints/
+__pycache__/
+
+*.csv

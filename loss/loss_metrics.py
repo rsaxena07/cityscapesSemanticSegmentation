@@ -36,16 +36,17 @@ def accuracy(preds, lbls, ignore_class=None):
 # source thread: https://discuss.pytorch.org/t/one-hot-encoding-with-autograd-dice-loss/9781/5
 # preds - NxCxHxW
 # target - NxHxW
-def dice_loss_per_channel(pred, target, weights=None, ignore_index=None, smooth=1):
+def dice_loss_per_channel(pred, target, weights=None, ignore_index=None, smooth=1, squishPreds=False):
     
     #apply softmax to preds to make values in the range 0 .. 1
     # softmax = nn.Softmax2d()
     # pred = softmax(pred)
 
     # dont use softmax, divide each pixel prediction with sum of prediction value to squish in range 0 .. 1
-    sumPred = pred.sum(dim=1).unsqueeze(1)
-    pred = pred/sumPred
-    del sumPred
+    if squishPreds:
+        sumPred = pred.sum(dim=1).unsqueeze(1)
+        pred = pred/sumPred
+        del sumPred
     
     # encoded_target will store one hot encoded target
     # useful documentation: https://pytorch.org/docs/stable/tensors.html#torch.Tensor.scatter_
@@ -85,8 +86,8 @@ def dice_loss_per_channel(pred, target, weights=None, ignore_index=None, smooth=
     return loss_per_channel
 
 # wrapper method to be used for loss
-def dice_loss(pred, target, weights=None, ignore_index=None, eps=0.0001, smooth=1):
+def dice_loss(pred, target, weights=None, ignore_index=None, eps=0.0001, smooth=1, squishPreds=False):
     loss_per_channel = dice_loss_per_channel(pred, target, weights=weights, 
-                                             ignore_index=ignore_index, eps=eps, smooth=smooth)
+                                             ignore_index=ignore_index, eps=eps, smooth=smooth, squishPreds=squishPreds)
     
     return loss_per_channel.sum()/pred.size(1)
