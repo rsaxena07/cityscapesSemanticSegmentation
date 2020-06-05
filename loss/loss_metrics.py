@@ -36,17 +36,7 @@ def accuracy(preds, lbls, ignore_class=None):
 # source thread: https://discuss.pytorch.org/t/one-hot-encoding-with-autograd-dice-loss/9781/5
 # preds - NxCxHxW
 # target - NxHxW
-def dice_loss_per_channel(pred, target, weights=None, ignore_index=None, smooth=1, squishPreds=False):
-    
-    #apply softmax to preds to make values in the range 0 .. 1
-    # softmax = nn.Softmax2d()
-    # pred = softmax(pred)
-
-    # dont use softmax, divide each pixel prediction with sum of prediction value to squish in range 0 .. 1
-    if squishPreds:
-        sumPred = pred.sum(dim=1).unsqueeze(1)
-        pred = pred/sumPred
-        del sumPred
+def dice_coeff_per_channel(pred, target, ignore_index=None, smooth=1):
     
     # encoded_target will store one hot encoded target
     # useful documentation: https://pytorch.org/docs/stable/tensors.html#torch.Tensor.scatter_
@@ -62,9 +52,12 @@ def dice_loss_per_channel(pred, target, weights=None, ignore_index=None, smooth=
     else:
         encoded_target.scatter_(1, target.unsqueeze(1), 1)
 #     encoded_target = Variable(encoded_target)
-        
-    if weights is None:
-        weights = 1
+
+    # to make pred one hot encoded
+    predFlat= pred.argmax(dim=1)
+    pred = pred * 0
+    pred.scatter_(1, predFlat.unsqueeze(1), 1)
+    del predFlat
     
     # calculate numerator which represents intersection
     numerator = pred*encoded_target
@@ -80,14 +73,24 @@ def dice_loss_per_channel(pred, target, weights=None, ignore_index=None, smooth=
     numerator+=smooth
     denominator+=smooth
     
-    loss_per_channel = weights * (1 - (numerator / denominator))
+    return (numerator/denominator)
+
+
+def dice_loss_per_channel(pred, target, weights=None, ignore_index=None, smooth=1):
     
-    del numerator, denominator
+    dice_coeff = dice_coeff_per_channel(pred, target, ignore_index=ignore_index, smooth=smooth)
+    
+    if weights is None:
+        weights = 1
+    
+    loss_per_channel = weights * (1 - dice_coeff)
+    
     return loss_per_channel
 
+
 # wrapper method to be used for loss
-def dice_loss(pred, target, weights=None, ignore_index=None, eps=0.0001, smooth=1, squishPreds=False):
+def dice_loss(pred, target, weights=None, ignore_index=None, smooth=1, squishPreds=False):
     loss_per_channel = dice_loss_per_channel(pred, target, weights=weights, 
-                                             ignore_index=ignore_index, eps=eps, smooth=smooth, squishPreds=squishPreds)
+                                             ignore_index=ignore_index, smooth=smooth, squishPreds=squishPreds)
     
-    return loss_per_channel.sum()/pred.size(1)
+    return loss_per_channel.mean()
