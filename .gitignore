@@ -1,5 +1,6 @@
 data/
 data-camvid/
+saves/
 .ipynb_checkpoints/
 __pycache__/
 
